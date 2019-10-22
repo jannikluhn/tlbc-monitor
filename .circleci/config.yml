@@ -63,8 +63,6 @@ commands:
             docker push $DOCKER_REPO:$VERSION
             docker tag $LOCAL_IMAGE $DOCKER_REPO:$CLEAN_BRANCH_NAME
             docker push $DOCKER_REPO:$CLEAN_BRANCH_NAME
-            docker tag report-validator $DOCKER_REPORT_VALIDATOR_REPO:$VERSION
-            docker push $DOCKER_REPORT_VALIDATOR_REPO:$VERSION
 
 jobs:
   # install python and create an empty python virtualenv
@@ -196,12 +194,33 @@ jobs:
           name: Build docker image
           command: |
             docker build . -t $LOCAL_IMAGE
-            docker build . -t report-validator -f Dockerfile.report-validator
       - run:
           name: Save docker image
           command: |
             mkdir -p ~/images
-            docker save --output ~/images/$LOCAL_IMAGE.tar $LOCAL_IMAGE report-validator
+            docker save --output ~/images/$LOCAL_IMAGE.tar $LOCAL_IMAGE
+      - persist_to_workspace:
+          root: "~"
+          paths:
+            - images
+
+  build-report-docker-image:
+    executor: ubuntu-builder
+    environment:
+      LOCAL_IMAGE: report-validator
+    working_directory: ~/repo
+    steps:
+      - setup_remote_docker
+      - checkout
+      - run:
+          name: Build docker image
+          command: |
+            docker build . -t $LOCAL_IMAGE -f Dockerfile.report-validator
+      - run:
+          name: Save docker image
+          command: |
+            mkdir -p ~/images
+            docker save --output ~/images/$LOCAL_IMAGE.tar $LOCAL_IMAGE
       - persist_to_workspace:
           root: "~"
           paths:
@@ -217,7 +236,6 @@ jobs:
           name: set DOCKER_REPO
           command: |
             echo ': \"${DOCKER_REPO:=trustlines/tlbc-monitor-next}\"' >> ${BASH_ENV}
-            echo ': \"${DOCKER_REPORT_VALIDATOR_REPO:=trustlines/report-validator}\"' >> ${BASH_ENV}
 
           # this allows us to set DOCKER_REPO from circleci when building in a
           # fork. makes testing easier.
@@ -233,7 +251,6 @@ jobs:
           name: set DOCKER_REPO
           command: |
             echo ': \"${DOCKER_REPO:=trustlines/tlbc-monitor}\"' >> ${BASH_ENV}
-            echo ': \"${DOCKER_REPORT_VALIDATOR_REPO:=trustlines/report-validator}\"' >> ${BASH_ENV}
 
           # this allows us to set DOCKER_REPO from circleci when building in a
           # fork. makes testing easier.
@@ -244,8 +261,27 @@ jobs:
             echo "Tagging with $DOCKER_REPO:latest"
             docker tag $LOCAL_IMAGE $DOCKER_REPO:latest
             docker push $DOCKER_REPO:latest
-            docker tag report-validator $DOCKER_REPORT_VALIDATOR_REPO:latest
-            docker push $DOCKER_REPORT_VALIDATOR_REPO:latest
+
+  deploy-report-docker-image:
+    executor: ubuntu-builder
+    environment:
+      LOCAL_IMAGE: report-validator
+    working_directory: ~/repo
+    steps:
+      - run:
+          name: set DOCKER_REPO
+          command: |
+            echo ': \"${DOCKER_REPO:=trustlines/report-validator}\"' >> ${BASH_ENV}
+
+          # this allows us to set DOCKER_REPO from circleci when building in a
+          # fork. makes testing easier.
+      - upload-docker-image
+      - run:
+          name: Upload latest image
+          command: |
+            echo "Tagging with $DOCKER_REPO:latest"
+            docker tag $LOCAL_IMAGE $DOCKER_REPO:latest
+            docker push $DOCKER_REPO:latest
 
   end2end:
     machine:
@@ -300,6 +336,9 @@ workflows:
       - build-docker-image:
           filters:
             <<: *tagged-filter
+      - build-report-docker-image:
+          filters:
+            <<: *tagged-filter
       - approve-release:
           type: approval
           filters:
@@ -337,5 +376,16 @@ workflows:
             - install
             - build-docker-image
             - approve-release
+          context: docker-credentials
+      - deploy-report-docker-image:
+          filters:
+            <<: *tagged-filter
+          requires:
+            - run-flake8
+            - run-black
+            - run-pytest
+            - run-mypy
+            - install
+            - build-report-docker-image
           context: docker-credentials
       - end2end
