@@ -184,7 +184,7 @@ jobs:
   build-docker-image:
     executor: ubuntu-builder
     environment:
-      LOCAL_IMAGE: tlbc-monitor-next
+      LOCAL_IMAGE: tlbc-monitor
 
     working_directory: ~/repo
     steps:
@@ -208,7 +208,7 @@ jobs:
     executor: ubuntu-builder
     environment:
       LOCAL_IMAGE: report-validator
-      LOCAL_MONITOR_IMAGE: tlbc-monitor-next
+      LOCAL_MONITOR_IMAGE: tlbc-monitor
     working_directory: ~/repo
     steps:
       - setup_remote_docker
@@ -238,7 +238,7 @@ jobs:
   deploy-docker-image:
     executor: ubuntu-builder
     environment:
-      LOCAL_IMAGE: tlbc-monitor-next
+      LOCAL_IMAGE: tlbc-monitor
     working_directory: ~/repo
     steps:
       - run:
@@ -253,7 +253,7 @@ jobs:
   deploy-docker-release-image:
     executor: ubuntu-builder
     environment:
-      LOCAL_IMAGE: tlbc-monitor-next
+      LOCAL_IMAGE: tlbc-monitor
     working_directory: ~/repo
     steps:
       - run:
