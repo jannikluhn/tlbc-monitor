@@ -64,6 +64,34 @@ commands:
             docker tag $LOCAL_IMAGE $DOCKER_REPO:$CLEAN_BRANCH_NAME
             docker push $DOCKER_REPO:$CLEAN_BRANCH_NAME
 
+  upload-report-docker-image:
+    description: "Deploy report docker image"
+    steps:
+      - setup_remote_docker
+      - attach_workspace:
+          at: '~'
+      - run:
+          name: Load docker image
+          command: |
+            du -hc ~/images/*
+            docker load --input ~/images/$LOCAL_IMAGE.tar
+            docker image ls
+      - run:
+          name: Login to dockerhub
+          command: |
+            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USER" --password-stdin
+      - run:
+          name: Upload docker images
+          command: |
+            CLEAN_BRANCH_NAME=${CIRCLE_BRANCH##*/}
+            echo "Tagging with $DOCKER_REPO:$CIRCLE_BUILD_NUM, $DOCKER_REPO:$CLEAN_BRANCH_NAME, and $DOCKER_REPO:latest"
+            docker tag $LOCAL_IMAGE $DOCKER_REPO:$CIRCLE_BUILD_NUM
+            docker push $DOCKER_REPO:$CIRCLE_BUILD_NUM
+            docker tag $LOCAL_IMAGE $DOCKER_REPO:$CLEAN_BRANCH_NAME
+            docker push $DOCKER_REPO:$CLEAN_BRANCH_NAME
+            docker tag $LOCAL_IMAGE $DOCKER_REPO:latest
+            docker push $DOCKER_REPO:latest
+
 jobs:
   # install python and create an empty python virtualenv
   prepare-system:
@@ -184,7 +212,7 @@ jobs:
   build-docker-image:
     executor: ubuntu-builder
     environment:
-      LOCAL_IMAGE: tlbc-monitor-next
+      LOCAL_IMAGE: tlbc-monitor
 
     working_directory: ~/repo
     steps:
@@ -208,16 +236,25 @@ jobs:
     executor: ubuntu-builder
     environment:
       LOCAL_IMAGE: report-validator
+      LOCAL_MONITOR_IMAGE: tlbc-monitor
     working_directory: ~/repo
     steps:
       - setup_remote_docker
       - checkout
+      - attach_workspace:
+          at: '~'
       - run:
-          name: Build docker image
+          name: Load monitor docker image
+          command: |
+            du -hc ~/images/*
+            docker load --input ~/images/$LOCAL_MONITOR_IMAGE.tar
+            docker image ls
+      - run:
+          name: Build report docker image
           command: |
             docker build . -t $LOCAL_IMAGE -f Dockerfile.report-validator
       - run:
-          name: Save docker image
+          name: Save report docker image
           command: |
             mkdir -p ~/images
             docker save --output ~/images/$LOCAL_IMAGE.tar $LOCAL_IMAGE
@@ -229,7 +266,7 @@ jobs:
   deploy-docker-image:
     executor: ubuntu-builder
     environment:
-      LOCAL_IMAGE: tlbc-monitor-next
+      LOCAL_IMAGE: tlbc-monitor
     working_directory: ~/repo
     steps:
       - run:
@@ -244,7 +281,7 @@ jobs:
   deploy-docker-release-image:
     executor: ubuntu-builder
     environment:
-      LOCAL_IMAGE: tlbc-monitor-next
+      LOCAL_IMAGE: tlbc-monitor
     working_directory: ~/repo
     steps:
       - run:
@@ -275,13 +312,7 @@ jobs:
 
           # this allows us to set DOCKER_REPO from circleci when building in a
           # fork. makes testing easier.
-      - upload-docker-image
-      - run:
-          name: Upload latest image
-          command: |
-            echo "Tagging with $DOCKER_REPO:latest"
-            docker tag $LOCAL_IMAGE $DOCKER_REPO:latest
-            docker push $DOCKER_REPO:latest
+      - upload-report-docker-image
 
   end2end:
     machine:
@@ -339,6 +370,8 @@ workflows:
       - build-report-docker-image:
           filters:
             <<: *tagged-filter
+          requires:
+            - build-docker-image
       - approve-release:
           type: approval
           filters:
