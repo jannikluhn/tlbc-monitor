@@ -208,16 +208,23 @@ jobs:
     executor: ubuntu-builder
     environment:
       LOCAL_IMAGE: report-validator
+      LOCAL_MONITOR_IMAGE: tlbc-monitor-next
     working_directory: ~/repo
     steps:
       - setup_remote_docker
       - checkout
       - run:
-          name: Build docker image
+          name: Load monitor docker image
+          command: |
+            du -hc ~/images/*
+            docker load --input ~/images/$LOCAL_MONITOR_IMAGE.tar
+            docker image ls
+      - run:
+          name: Build report docker image
           command: |
             docker build . -t $LOCAL_IMAGE -f Dockerfile.report-validator
       - run:
-          name: Save docker image
+          name: Save report docker image
           command: |
             mkdir -p ~/images
             docker save --output ~/images/$LOCAL_IMAGE.tar $LOCAL_IMAGE
@@ -339,6 +346,8 @@ workflows:
       - build-report-docker-image:
           filters:
             <<: *tagged-filter
+          requires:
+            - build-docker-image
       - approve-release:
           type: approval
           filters:
