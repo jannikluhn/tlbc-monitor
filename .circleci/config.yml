@@ -235,7 +235,7 @@ jobs:
       - run:
           name: set DOCKER_REPO
           command: |
-            echo ': \"${DOCKER_REPO:=trustlines/tlbc-monitor-next}\"' >> ${BASH_ENV}
+            echo ': \"${DOCKER_REPO:=jannikluhn/tlbc-monitor-next}\"' >> ${BASH_ENV}
 
           # this allows us to set DOCKER_REPO from circleci when building in a
           # fork. makes testing easier.
@@ -250,7 +250,7 @@ jobs:
       - run:
           name: set DOCKER_REPO
           command: |
-            echo ': \"${DOCKER_REPO:=trustlines/tlbc-monitor}\"' >> ${BASH_ENV}
+            echo ': \"${DOCKER_REPO:=jannikluhn/tlbc-monitor}\"' >> ${BASH_ENV}
 
           # this allows us to set DOCKER_REPO from circleci when building in a
           # fork. makes testing easier.
@@ -271,7 +271,7 @@ jobs:
       - run:
           name: set DOCKER_REPO
           command: |
-            echo ': \"${DOCKER_REPO:=trustlines/report-validator}\"' >> ${BASH_ENV}
+            echo ': \"${DOCKER_REPO:=jannikluhn/report-validator}\"' >> ${BASH_ENV}
 
           # this allows us to set DOCKER_REPO from circleci when building in a
           # fork. makes testing easier.
